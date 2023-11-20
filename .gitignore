@@ -1,0 +1,7 @@
+/.idea
+/__pycache__
+/logs
+/venv
+*.env
+/migrations
+app.db
