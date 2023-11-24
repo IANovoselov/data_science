@@ -7,7 +7,15 @@ class ActivationFunc:
     """
     Названий функций активации
     """
-    SIGMOID = 'sigmoid'
+
+    @classmethod
+    def sigmoid(cls, value):
+        """
+        Сигмоидальная функция активации
+        :param value:
+        :return:
+        """
+        return 1 / (1 + np.exp(-value))
 
 
 class Network:
@@ -23,51 +31,36 @@ class Network:
         assert isinstance(neurons_counts, list)
         assert len(neurons_counts) >= 2
 
-        activation_func_dict = {None: self.sigmoid,
-                                ActivationFunc.SIGMOID: self.sigmoid,
-                                }
-
-        self._activation_func = activation_func_dict.get(activation_func, self.sigmoid)
+        self._activation_func = activation_func
 
         self._weights = []
         self.layers = len(neurons_counts) - 1  # Количество слоёв, за исключением входа
-        self.neurons_counts = neurons_counts[1:]
+        self.neurons_counts = neurons_counts
 
         # Заполнить веса для i-ого слоя
         for i, neuron_count in enumerate(neurons_counts[1:]):
 
             # Количество входов для i-ого слоя
             # i - индекс предыдущего слоя
-            inputs_num = neurons_counts[i]
+            layer_inputs_num = neurons_counts[i]
 
-            self._weights.append([np.array([random() for _ in range(inputs_num)]) for _ in range(neuron_count)])
+            # Матрица весов i-ого слоя M x N - где М - количевто выходов из предыдущего слоя,
+            # N - количество нейронов в i-ом слое
+            self._weights.append(np.random.random((layer_inputs_num, neuron_count)))
 
-    def forward(self, inputs: List[int]) -> float:
+    def forward(self, inputs: List[int]) -> np.ndarray:
         """
         Прямое распространение
         :param inputs:
         :return:
         """
-        result = np.array(inputs)
+        result = np.array([inputs])
 
-        for l in range(self.layers):
-            new_result = []
-            for n in range(self.neurons_counts[l]):
-                layer_result_by_neuron = result.dot(self.weights[l][n])
-                new_result.append(self.activation(layer_result_by_neuron))
-
-            result = np.array(new_result)
+        for layer_num in range(self.layers):
+            layer_result = result.dot(self.weights[layer_num])
+            result = self.activate(layer_result)
 
         return result
-
-    @staticmethod
-    def sigmoid(value):
-        """
-        Сигмоидальная функция активации
-        :param value:
-        :return:
-        """
-        return 1 / (1 + np.exp(-value))
 
     @property
     def weights(self):
@@ -77,8 +70,17 @@ class Network:
         """
         return self._weights
 
+    def activate(self, layer_result: np.ndarray) -> np.ndarray:
+        """
+        Активировать
+        :param layer_result:
+        :return:
+        """
+        np_activate = np.vectorize(self.activation_func)
+        return np_activate(layer_result)
+
     @property
-    def activation(self):
+    def activation_func(self):
         """
         Вернуть функцию активации
         :return:
@@ -86,17 +88,10 @@ class Network:
         return self._activation_func
 
     def __repr__(self):
-        return f'Network({self.neurons_counts}, {"sigmoid"})'
+        return f'Network({self.neurons_counts}, {"ActivationFunc.sigmoid"})'
 
 
-net = Network([2, 2, 1])
+net = Network([2, 2, 4,  1], ActivationFunc.sigmoid)
 print(net.weights)
 result = net.forward([1, 1])
 print(result)
-
-
-
-
-
-
-
