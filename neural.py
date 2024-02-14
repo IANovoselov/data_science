@@ -59,19 +59,12 @@ class Network:
 
         self._weights = []
         self.layer_inputs = []
-        self.layers = len(neurons_counts) - 1  # Количество слоёв, за исключением входа
+        self.activations = []
+        self.layers = len(neurons_counts)
         self.neurons_counts = neurons_counts
 
-        # Заполнить веса для i-ого слоя
-        for i, neuron_count in enumerate(neurons_counts[1:]):
-
-            # Количество входов для i-ого слоя
-            # i - индекс предыдущего слоя
-            layer_inputs_num = neurons_counts[i]
-
-            # Матрица весов i-ого слоя M x N - где М - количевто выходов из предыдущего слоя,
-            # N - количество нейронов в i-ом слое
-            self._weights.append(np.random.random((layer_inputs_num, neuron_count)))
+        self._weights = [np.random.randn(y, x)
+                         for x, y in zip(neurons_counts[:-1], neurons_counts[1:])]
 
     def forward(self, inputs: List[int]) -> np.ndarray:
         """
@@ -79,20 +72,19 @@ class Network:
         :param inputs:
         :return:
         """
-        self.layer_inputs = []
 
-        result = np.array([inputs])
+        result = np.array([inputs]).T
+        self.layer_inputs.append(result)
+        self.activations.append(result)
 
-        for layer_num in range(self.layers):
+        for layer_num in range(self.layers-1):
 
             # Запомнить результат выисления на каждом слое
-            self.layer_inputs.append(result)
+            layer_result = np.dot(self.weights[layer_num], result)
+            self.layer_inputs.append(layer_result)
 
-            layer_result = result.dot(self.weights[layer_num])
             result = self.activate(layer_result)
-
-
-
+            self.activations.append(result)
 
         return result
 
@@ -103,23 +95,27 @@ class Network:
         :param goal: Ожидаемый резульат
         :return:
         """
-        # np_diff_func = np.vectorize(self.differenciate_func)
+        np_diff_func = np.vectorize(self.differenciate_func)
 
-        alpha = 0.1
+        alpha = 0.01
 
-        error = (goal-calc_result)**2
+        error = (calc_result - goal)**2
 
-        for layer_num in range(self.layers):
+        delta_output = (calc_result - goal) * np_diff_func(calc_result)
+        delta_weights_output = alpha * np.dot(delta_output, self.activations[-2].T)
+        self.weight[-1] -= delta_weights_output
 
-            # diff = np_diff_func(error)
+        for layer_num in range(2, self.layers):
 
-            delta_weights = alpha * (self.layer_inputs[layer_num] * (calc_result - goal))
+            i = -layer_num
 
-            self.weight[layer_num] -= delta_weights.transpose()
+            delta_hidden = np.dot(self.weight[i+1].T, delta_output) * np_diff_func(self.layer_inputs[i])
+            delta_weights_hidden = alpha * np.dot(delta_hidden, self.activations[i-1].T)
+            self.weight[i] -= delta_weights_hidden
 
+            delta_output = delta_hidden
 
         return error
-
 
 
     @property
@@ -168,29 +164,25 @@ class Network:
         return f'Network({self.neurons_counts}, {"ActivationFunc.sigmoid"})'
 
 
-net = Network([3, 1], ActivationFunc.sigmoid)
+net = Network([2, 2, 1], ActivationFunc.sigmoid)
 print(net.weights)
 
-data = np.array([[0, 0, 0],
-                 [0, 0, 1],
-                 [0, 1, 0],
-                 [0, 1, 1],
-                 [1, 0, 0],
-                 [1, 0, 1],
-                 [1, 1, 0],
-                 [1, 1, 1],
+data = np.array([[0, 0],
+                 [0, 1],
+                 [1, 0],
+                 [1, 1],
                  ])
 
-expectation = np.array([0, 0, 1, 1, 0, 0, 1, 1])
+expectation = np.array([0, 1, 1, 0])
 
-for iterations in range(100):
+for iterations in range(100000):
     common_error = 0
     for i in range(len(expectation)):
         result = net.forward(data[i])
         error = net.back_propagation(result, expectation[i])
 
         common_error += error
-    print(error)
+    print(common_error)
 
 print(net.weights)
 print(result)
