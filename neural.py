@@ -18,6 +18,13 @@ class ActivationFunc:
         return 1 / (1 + np.exp(-value))
 
     @classmethod
+    def relu(cls, value):
+        if value > 0:
+            return value
+        else:
+            return 0.0
+
+    @classmethod
     def simple(cls, value):
         """
 
@@ -40,13 +47,20 @@ class DifferensiateFunc:
         """
         return ActivationFunc.sigmoid(value)*(1-ActivationFunc.sigmoid(value))
 
+    @classmethod
+    def relu(cls, value):
+        if value >= 0:
+            return 1.0
+        else:
+            return 0.0
+
 
 class Network:
     """
     Объект нейронной сети
     """
 
-    def __init__(self, neurons_counts: List[int], activation_func=None):
+    def __init__(self, neurons_counts: List[int]):
         """
         Конструктор нейронной сети
         :param neurons_counts: Количестов нейронов в i-ом слое
@@ -97,20 +111,24 @@ class Network:
         """
         np_diff_func = np.vectorize(self.differenciate_func)
 
-        alpha = 0.01
+        alpha = 0.1
 
         error = (calc_result - goal)**2
 
         delta_output = (calc_result - goal) * np_diff_func(calc_result)
         delta_weights_output = alpha * np.dot(delta_output, self.activations[-2].T)
+
+        weights_old = self.weight[-1].copy()
         self.weight[-1] -= delta_weights_output
 
         for layer_num in range(2, self.layers):
 
             i = -layer_num
 
-            delta_hidden = np.dot(self.weight[i+1].T, delta_output) * np_diff_func(self.layer_inputs[i])
+            delta_hidden = np.dot(weights_old.T, delta_output) * np_diff_func(self.layer_inputs[i])
             delta_weights_hidden = alpha * np.dot(delta_hidden, self.activations[i-1].T)
+
+            weights_old = self.weight[i].copy()
             self.weight[i] -= delta_weights_hidden
 
             delta_output = delta_hidden
@@ -152,6 +170,15 @@ class Network:
         """
         return self._activation_func or ActivationFunc.sigmoid
 
+    @activation_func.setter
+    def activation_func(self, func):
+        """
+
+        :param value:
+        :return:
+        """
+        self._activation_func = func
+
     @property
     def differenciate_func(self):
         """
@@ -160,29 +187,38 @@ class Network:
         """
         return self._differenciate_func or DifferensiateFunc.sigmoid
 
+    @differenciate_func.setter
+    def differenciate_func(self, func):
+        """
+
+        :param value:
+        :return:
+        """
+        self._differenciate_func = func
+
     def __repr__(self):
-        return f'Network({self.neurons_counts}, {"ActivationFunc.sigmoid"})'
+        return f'Network({self.neurons_counts})'
 
 
-net = Network([2, 2, 1], ActivationFunc.sigmoid)
-print(net.weights)
+net = Network([3, 4, 1])
+net.activation_func = ActivationFunc.relu
+net.differenciate_func = DifferensiateFunc.relu
 
-data = np.array([[0, 0],
-                 [0, 1],
-                 [1, 0],
-                 [1, 1],
+data = np.array([[0, 0, 1],
+                 [0, 1, 1],
+                 [1, 0, 1],
+                 [1, 1, 1],
                  ])
 
 expectation = np.array([0, 1, 1, 0])
 
-for iterations in range(100000):
+for iterations in range(1000):
     common_error = 0
     for i in range(len(expectation)):
         result = net.forward(data[i])
         error = net.back_propagation(result, expectation[i])
 
         common_error += error
-    print(common_error)
-
+print(common_error)
 print(net.weights)
-print(result)
+
