@@ -198,27 +198,3 @@ class Network:
 
     def __repr__(self):
         return f'Network({self.neurons_counts})'
-
-
-net = Network([3, 4, 1])
-net.activation_func = ActivationFunc.relu
-net.differenciate_func = DifferensiateFunc.relu
-
-data = np.array([[0, 0, 1],
-                 [0, 1, 1],
-                 [1, 0, 1],
-                 [1, 1, 1],
-                 ])
-
-expectation = np.array([0, 1, 1, 0])
-
-for iterations in range(1000):
-    common_error = 0
-    for i in range(len(expectation)):
-        result = net.forward(data[i])
-        error = net.back_propagation(result, expectation[i])
-
-        common_error += error
-print(common_error)
-print(net.weights)
-
