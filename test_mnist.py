@@ -2,6 +2,7 @@ import numpy as np
 import sys
 from keras.datasets import mnist
 from neural import ActivationFunc, DifferensiateFunc, Network
+from png_to_mnist import imageprepare
 
 
 (x_tarin, y_train), (x_test, y_test) = mnist.load_data()
@@ -17,19 +18,23 @@ for i, l in enumerate(labels):
 labels = one_hot_labels
 
 net = Network([784, 40, 10])
-net.activation_func = ActivationFunc.relu
-net.differenciate_func = DifferensiateFunc.relu
+net.activation_func = np.vectorize(ActivationFunc.sigmoid)
+net.differenciate_func = np.vectorize(DifferensiateFunc.sigmoid)
+net.alpha = 0.005
 
-for iterations in range(350):
+for iterations in range(300):
     common_error = 0
     for i in range(len(images)):
 
         data_input = images[i]
-        goal = labels[i]
+        goal = labels[i:i+1].T
 
         result = net.forward(data_input)
         error = net.back_propagation(result, goal)
 
-        common_error += error
-print(common_error)
+        common_error += np.sum(error)
+    print(common_error, "Итерация: ", iterations)
 print(net.weights)
+
+data_input = np.array(imageprepare('test.png'))
+result = net.forward(data_input)

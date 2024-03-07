@@ -80,12 +80,16 @@ class Network:
         self._weights = [np.random.randn(y, x)
                          for x, y in zip(neurons_counts[:-1], neurons_counts[1:])]
 
+        self.alpha = 0.005
+
     def forward(self, inputs: List[int]) -> np.ndarray:
         """
         Прямое распространение
         :param inputs:
         :return:
         """
+        self.activations = []
+        self.layer_inputs = []
 
         result = np.array([inputs]).T
         self.layer_inputs.append(result)
@@ -109,14 +113,11 @@ class Network:
         :param goal: Ожидаемый резульат
         :return:
         """
-        np_diff_func = np.vectorize(self.differenciate_func)
-
-        alpha = 0.1
 
         error = (calc_result - goal)**2
 
-        delta_output = (calc_result - goal) * np_diff_func(calc_result)
-        delta_weights_output = alpha * np.dot(delta_output, self.activations[-2].T)
+        delta_output = (calc_result - goal) * self.differenciate_func(self.layer_inputs[-1])
+        delta_weights_output = self.alpha * np.dot(delta_output, self.activations[-2].T)
 
         weights_old = self.weight[-1].copy()
         self.weight[-1] -= delta_weights_output
@@ -125,8 +126,8 @@ class Network:
 
             i = -layer_num
 
-            delta_hidden = np.dot(weights_old.T, delta_output) * np_diff_func(self.layer_inputs[i])
-            delta_weights_hidden = alpha * np.dot(delta_hidden, self.activations[i-1].T)
+            delta_hidden = np.dot(weights_old.T, delta_output) * self.differenciate_func(self.layer_inputs[i])
+            delta_weights_hidden = self.alpha * np.dot(delta_hidden, self.activations[i-1].T)
 
             weights_old = self.weight[i].copy()
             self.weight[i] -= delta_weights_hidden
@@ -134,6 +135,9 @@ class Network:
             delta_output = delta_hidden
 
         return error
+
+    def train(self):
+        pass
 
 
     @property
@@ -159,8 +163,7 @@ class Network:
         :param layer_result:
         :return:
         """
-        np_activate = np.vectorize(self.activation_func)
-        return np_activate(layer_result)
+        return self.activation_func(layer_result)
 
     @property
     def activation_func(self):
