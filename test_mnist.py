@@ -20,7 +20,7 @@ labels = one_hot_labels
 net = Network([784, 40, 10])
 net.activation_func = np.vectorize(ActivationFunc.sigmoid)
 net.differenciate_func = np.vectorize(DifferensiateFunc.sigmoid)
-net.alpha = 0.005
+net.alpha = 0.001
 
 for iterations in range(300):
     common_error = 0
@@ -32,8 +32,8 @@ for iterations in range(300):
         result = net.forward(data_input)
         error = net.back_propagation(result, goal)
 
-        common_error += np.sum(error)
-    print(common_error, "Итерация: ", iterations)
+        common_error += np.sum(error) / 10
+    print(common_error / len(images), "Итерация: ", iterations)
 print(net.weights)
 
 data_input = np.array(imageprepare('test.png'))

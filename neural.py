@@ -92,16 +92,16 @@ class Network:
         self.layer_inputs = []
 
         result = np.array([inputs]).T
-        self.layer_inputs.append(result)
-        self.activations.append(result)
+        self.layer_inputs.append(result.copy())
+        self.activations.append(result.copy())
 
         for layer_num in range(self.layers-1):
 
             # Запомнить результат выисления на каждом слое
             layer_result = np.dot(self.weights[layer_num], result)
-            self.layer_inputs.append(layer_result)
+            self.layer_inputs.append(layer_result.copy())
 
-            result = self.activate(layer_result)
+            result = self.activate(layer_result.copy())
             self.activations.append(result)
 
         return result
@@ -114,7 +114,7 @@ class Network:
         :return:
         """
 
-        error = (calc_result - goal)**2
+        error = np.round((calc_result - goal)**2, 3)
 
         delta_output = (calc_result - goal) * self.differenciate_func(self.layer_inputs[-1])
         delta_weights_output = self.alpha * np.dot(delta_output, self.activations[-2].T)

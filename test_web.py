@@ -3,8 +3,9 @@ from neural import ActivationFunc, DifferensiateFunc, Network
 
 
 net = Network([3, 4, 1])
-net.activation_func = ActivationFunc.relu
-net.differenciate_func = DifferensiateFunc.relu
+net.activation_func = np.vectorize(ActivationFunc.relu)
+net.differenciate_func = np.vectorize(DifferensiateFunc.relu)
+net.alpha = 0.02
 
 data = np.array([[0, 0, 1],
                  [0, 1, 1],
@@ -25,5 +26,5 @@ for iterations in range(1000):
         error = net.back_propagation(result, goal)
 
         common_error += error
-print(common_error)
+print(common_error / len(expectation))
 print(net.weights)
