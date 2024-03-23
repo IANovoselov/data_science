@@ -81,6 +81,7 @@ class Network:
                          for x, y in zip(neurons_counts[:-1], neurons_counts[1:])]
 
         self.alpha = 0.005
+        self.batch_size = 1
 
     def forward(self, inputs: List[int]) -> np.ndarray:
         """
@@ -91,7 +92,7 @@ class Network:
         self.activations = []
         self.layer_inputs = []
 
-        result = np.array([inputs]).T
+        result = np.array(inputs).T
         self.layer_inputs.append(result.copy())
         self.activations.append(result.copy())
 

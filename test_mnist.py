@@ -21,20 +21,24 @@ net = Network([784, 40, 10])
 net.activation_func = np.vectorize(ActivationFunc.sigmoid)
 net.differenciate_func = np.vectorize(DifferensiateFunc.sigmoid)
 net.alpha = 0.001
+batch_size = 100
+iterations_num = 50
 
-for iterations in range(300):
+for iterations in range(iterations_num):
     common_error = 0
-    for i in range(len(images)):
+    for i in range(int(len(images) / batch_size)):
+        batch_start = i * batch_size
+        batch_stop = (i+1) * batch_size
 
-        data_input = images[i]
-        goal = labels[i:i+1].T
+        data_input = images[batch_start:batch_stop]
+        goal = labels[batch_start:batch_stop].T
 
         result = net.forward(data_input)
         error = net.back_propagation(result, goal)
 
-        common_error += np.sum(error) / 10
+        common_error += np.sum(error) / (batch_size * 10)
     print(common_error / len(images), "Итерация: ", iterations)
 print(net.weights)
 
 data_input = np.array(imageprepare('test.png'))
-result = net.forward(data_input)
+result = net.forward(data_input[1:])

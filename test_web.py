@@ -2,11 +2,10 @@ import numpy as np
 from neural import ActivationFunc, DifferensiateFunc, Network
 
 
-net = Network([3, 4, 1])
-net.activation_func = np.vectorize(ActivationFunc.relu)
-net.differenciate_func = np.vectorize(DifferensiateFunc.relu)
-net.alpha = 0.02
-
+net = Network([3, 6, 1])
+net.activation_func = np.vectorize(ActivationFunc.sigmoid)
+net.differenciate_func = np.vectorize(DifferensiateFunc.sigmoid)
+net.alpha = 5
 data = np.array([[0, 0, 1],
                  [0, 1, 1],
                  [1, 0, 1],
