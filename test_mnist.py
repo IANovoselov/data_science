@@ -5,40 +5,43 @@ from neural import ActivationFunc, DifferensiateFunc, Network
 from png_to_mnist import imageprepare
 
 
-(x_tarin, y_train), (x_test, y_test) = mnist.load_data()
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
 
+# Данные для обучения
 # Преобразовать матрицу в массив - чтобы подавать на вход сети
-images = x_tarin[0:1000].reshape(1000, 28*28)
+images = x_train[0:1000].reshape(1000, 28*28) / 255
+for image in images:
+    np.append(image, 1)
 labels = y_train[0:1000]
 
 one_hot_labels = np.zeros((len(labels), 10))
-
 for i, l in enumerate(labels):
     one_hot_labels[i][l] = 1
 labels = one_hot_labels
 
+# Данные для проверки
+test_images = x_test.reshape(len(x_test), 28*28) / 255
+for image in test_images:
+    np.append(image, 1)
+test_labels = np.zeros((len(y_test), 10))
+for i, l in enumerate(y_test):
+    test_labels[i][l] = 1
+
 net = Network([784, 40, 10])
-net.activation_func = np.vectorize(ActivationFunc.sigmoid)
-net.differenciate_func = np.vectorize(DifferensiateFunc.sigmoid)
-net.alpha = 0.001
-batch_size = 100
-iterations_num = 50
+net.activation_func = [np.vectorize(ActivationFunc.sigmoid), np.vectorize(ActivationFunc.sigmoid)]
+net.derivative_func = [np.vectorize(DifferensiateFunc.sigmoid), np.vectorize(DifferensiateFunc.sigmoid)]
+net.alpha = 5
+net.batch_size = 100
+net.need_dropout = False
 
-for iterations in range(iterations_num):
-    common_error = 0
-    for i in range(int(len(images) / batch_size)):
-        batch_start = i * batch_size
-        batch_stop = (i+1) * batch_size
+net.train(images, labels, iterations_num=300)
 
-        data_input = images[batch_start:batch_stop]
-        goal = labels[batch_start:batch_stop].T
+# data_input = np.array([imageprepare('test.png')])
+# result = net.forward(data_input)
+# print(result)
 
-        result = net.forward(data_input)
-        error = net.back_propagation(result, goal)
-
-        common_error += np.sum(error) / (batch_size * 10)
-    print(common_error / len(images), "Итерация: ", iterations)
-print(net.weights)
-
-data_input = np.array(imageprepare('test.png'))
-result = net.forward(data_input[1:])
+result = net.forward(test_images)
+error = np.sum(np.round((result - test_labels.T)**2, 3))
+correct_answers = sum([np.argmax(result[:, k]) == np.argmax(test_labels.T[:, k]) for k in range(len(test_labels))])
+print(error/len(test_labels))
+print(correct_answers/len(test_labels))
