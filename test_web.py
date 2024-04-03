@@ -3,8 +3,8 @@ from neural import ActivationFunc, DifferensiateFunc, Network
 
 
 net = Network([3, 5, 1])
-net.activation_func = [np.vectorize(ActivationFunc.sigmoid), np.vectorize(ActivationFunc.sigmoid)]
-net.derivative_func = [np.vectorize(DifferensiateFunc.sigmoid), np.vectorize(DifferensiateFunc.sigmoid)]
+net.activation_func = [ActivationFunc.sigmoid, ActivationFunc.sigmoid]
+net.derivative_func = [DifferensiateFunc.sigmoid, DifferensiateFunc.sigmoid]
 net.alpha = 5
 data = np.array([[0, 0, 1],
                  [0, 1, 1],

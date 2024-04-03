@@ -9,7 +9,7 @@ class ActivationFunc:
     """
 
     @classmethod
-    def sigmoid(cls, value):
+    def sigmoid(cls, value, *args, **kwargs):
         """
         Сигмоидальная функция активации
         :param value:
@@ -18,14 +18,17 @@ class ActivationFunc:
         return 1 / (1 + np.exp(-value))
 
     @classmethod
-    def relu(cls, value):
-        if value >= 0:
-            return value
+    def relu(cls, value, *args, **kwargs):
+        for i in range(value.shape[0]):
+            for j in range(value.shape[1]):
 
-        return 0.0
+                if value[i][j] < 0:
+                    value[i][j] = 0
+
+        return value
 
     @classmethod
-    def simple(cls, value):
+    def simple(cls, value, *args, **kwargs):
         """
 
         :param value:
@@ -34,15 +37,17 @@ class ActivationFunc:
         return value
 
     @classmethod
-    def softmax(cls, value):
+    def softmax(cls, value, *args, **kwargs):
         """
 
         """
         temp = np.exp(value)
-        return temp / np.sum(temp)
+        for i in range(value.shape[1]):
+            temp[:, i] /= np.sum(temp[:, i])
+        return temp
 
     @classmethod
-    def tanh(cls, value):
+    def tanh(cls, value, *args, **kwargs):
         """
 
         """
@@ -53,7 +58,7 @@ class DifferensiateFunc:
     Производные
     """
     @classmethod
-    def sigmoid(cls, value):
+    def sigmoid(cls, value, *args, **kwargs):
         """
         Сигмоидальная функция активации
         :param value:
@@ -62,14 +67,18 @@ class DifferensiateFunc:
         return ActivationFunc.sigmoid(value)*(1-ActivationFunc.sigmoid(value))
 
     @classmethod
-    def relu(cls, value):
-        if value >= 0:
-            return 1.0
-        else:
-            return 0.0
+    def relu(cls, value, *args, **kwargs):
+        for i in range(value.shape[0]):
+            for j in range(value.shape[1]):
+
+                if value[i][j] >= 0:
+                    value[i][j] = 1
+                else:
+                    value[i][j] = 0
+        return value
 
     @classmethod
-    def simple(cls, value):
+    def simple(cls, value, *args, **kwargs):
         """
 
         :param value:
@@ -78,11 +87,20 @@ class DifferensiateFunc:
         return 1
 
     @classmethod
-    def tanh(cls, value):
+    def tanh(cls, value, *args, **kwargs):
         """
 
         """
-        return np.tanh(value)
+        return 1 - (ActivationFunc.tanh(value)**2)
+
+    @classmethod
+    def softmax(cls, value, *args, **kwargs):
+        """
+
+        """
+        goal = kwargs.get('goal')
+        temp = ActivationFunc.softmax(value) - goal
+        return temp / len(goal)
 
 
 class Network:
@@ -159,7 +177,7 @@ class Network:
 
         error = np.sum(np.round((calc_result - goal)**2, 3))
 
-        delta_output = (calc_result - goal) * self.derivative(self.layer_inputs[-1], -1)
+        delta_output = (calc_result - goal) * self.derivative(self.layer_inputs[-1], -1, goal)
         delta_output = delta_output/(self.batch_size) #* delta_output.shape[0])
 
         weights_old = self.weight[-1].copy()
@@ -254,14 +272,14 @@ class Network:
         """
         self._activation_func = funcs
 
-    def derivative(self, value, layer):
+    def derivative(self, value, layer, goal=None):
         """
         Вернуть функцию активации
         :return:
         """
         func = self._derivative_func[layer]
 
-        return func(value)
+        return func(value, goal=goal)
 
     @property
     def derivative_func(self, layer):
