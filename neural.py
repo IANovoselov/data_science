@@ -53,7 +53,7 @@ class ActivationFunc:
         """
         return np.tanh(value)
 
-class DifferensiateFunc:
+class DerivativeFunc:
     """
     Производные
     """
@@ -116,23 +116,27 @@ class Network:
         assert isinstance(neurons_counts, list)
         assert len(neurons_counts) >= 2
 
-        self._activation_func = []
-        self._derivative_func = []
+        self.activation_func = []
+        self.derivative_func = []
 
-        self._weights = []
+        self.weights = []
         self.layer_inputs = []
         self.activations = []
         self.layers = len(neurons_counts)
         self.neurons_counts = neurons_counts
-
-        self._weights = [np.random.randn(y, x)
-                         for x, y in zip(neurons_counts[:-1], neurons_counts[1:])]
 
         self.alpha = 0.005
         self.batch_size = 1
 
         self.dropout_masks = []
         self.need_dropout = False
+
+    def build_wieghts(self):
+        """
+
+        """
+        self.weights = [np.random.randn(y, x)
+                        for x, y in zip(self.neurons_counts[:-1], self.neurons_counts[1:])]
 
     def forward(self, inputs: np.ndarray[Any]) -> np.ndarray:
         """
@@ -180,9 +184,9 @@ class Network:
         delta_output = (calc_result - goal) * self.derivative(self.layer_inputs[-1], -1, goal)
         delta_output = delta_output/(self.batch_size) #* delta_output.shape[0])
 
-        weights_old = self.weight[-1].copy()
+        weights_old = self.weights[-1].copy()
 
-        self.weight[-1] -= self.alpha * delta_output.dot(self.activations[-2].T)
+        self.weights[-1] -= self.alpha * delta_output.dot(self.activations[-2].T)
 
         for layer_num in range(2, self.layers):
 
@@ -193,9 +197,9 @@ class Network:
             if self.need_dropout:
                 delta_hidden *= self.dropout_masks[i+1]
 
-            weights_old = self.weight[i].copy()
+            weights_old = self.weights[i].copy()
 
-            self.weight[i] -= self.alpha * delta_hidden.dot(self.activations[i-1].T)
+            self.weights[i] -= self.alpha * delta_hidden.dot(self.activations[i-1].T)
 
             delta_output = delta_hidden
 
@@ -227,23 +231,51 @@ class Network:
                   'Ошибок: ', np.round(common_error / len(y_train), 3),
                   'Правильных ответов: ', np.round(correct_answers / len(y_train), 3))
 
+    def train_with_kernels(self, x_train, y_train, iterations_num=100):
 
-    @property
-    def weights(self):
-        """
-        Вернуть веса
-        :return:
-        """
-        return self._weights
+        for iterations in range(iterations_num):
+            common_error, correct_answers = 0, 0
+            for i in range(int(len(x_train) / self.batch_size)):
+                batch_start = i * self.batch_size
+                batch_stop = (i + 1) * self.batch_size
 
-    @weights.setter
-    def weight(self, value):
-        """
+                data_input = x_train[batch_start:batch_stop]
+                data_input = data_input.reshape(data_input.shape[0], 28, 28)
 
-        :param value:
-        :return:
-        """
-        self._weights = value
+                sections = []
+                for row_start in range(data_input.shape[1] - 3):
+                    for col_start in range(data_input.shape[2] - 3):
+                        section = self.get_image_section(data_input,
+                                                         row_start,
+                                                         row_start+3,
+                                                         col_start,
+                                                         col_start+3)
+                        sections.append(section)
+
+
+                expanded_input = np.concatenate(sections, axis=1)
+                flatten_input = expanded_input.reshape(expanded_input.shape[0] * expanded_input.shape[1], -1)
+                goal = y_train[batch_start:batch_stop].T
+                result = self.forward(flatten_input, with_kernels=True)
+
+                if len(goal) == 1:
+                    correct_answers += (result[0][0] > (goal[0]* 0.9 or -0.1) and result[0][0] < (goal[0]* 1.1 or 0.1))
+                else:
+                    correct_answers += sum([np.argmax(result[:, k]) == np.argmax(goal[:, k]) for k in range(self.batch_size)])
+
+                error = self.back_propagation(result, goal, with_kernels=True)
+
+                common_error += error
+
+            print('Итерация: ', iterations,
+                  'Ошибок: ', np.round(common_error / len(y_train), 3),
+                  'Правильных ответов: ', np.round(correct_answers / len(y_train), 3))
+
+    @staticmethod
+    def get_image_section(layer, row_from, row_to, col_from, col_to):
+        section = layer[:, row_from:row_to, col_from:col_to]
+        return section.reshape(-1, 1, row_to - row_from, col_to - col_from)
+
 
     def activate(self, layer_result: np.ndarray, layer) -> np.ndarray:
         """
@@ -251,52 +283,20 @@ class Network:
         :param layer_result:
         :return:
         """
-        func = self._activation_func[layer]
+        func = self.activation_func[layer]
 
         return func(layer_result)
 
-    @property
-    def activation_func(self):
-        """
-        Вернуть функцию активации
-        :return:
-        """
-        return self._activation_func
-
-    @activation_func.setter
-    def activation_func(self, funcs):
-        """
-
-        :param value:
-        :return:
-        """
-        self._activation_func = funcs
 
     def derivative(self, value, layer, goal=None):
         """
         Вернуть функцию активации
         :return:
         """
-        func = self._derivative_func[layer]
+        func = self.derivative_func[layer]
 
         return func(value, goal=goal)
 
-    @property
-    def derivative_func(self, layer):
-        """
-        Вернуть функцию активации
-        :return:
-        """
-        return self._derivative_func[layer]
-
-    @derivative_func.setter
-    def derivative_func(self, funcs):
-        """
-
-        :param value:
-        :return:
-        """
-        self._derivative_func = funcs
 
     def __repr__(self):
         return f'Network({self.neurons_counts})'

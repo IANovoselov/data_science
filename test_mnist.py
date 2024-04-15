@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 from keras.datasets import mnist
-from neural import ActivationFunc, DifferensiateFunc, Network
+from neural import ActivationFunc, DerivativeFunc, Network
 from png_to_mnist import imageprepare
 
 
@@ -9,8 +9,8 @@ from png_to_mnist import imageprepare
 
 # Данные для обучения
 # Преобразовать матрицу в массив - чтобы подавать на вход сети
-images = x_train[0:5000].reshape(5000, 28*28) / 255
-labels = y_train[0:5000]
+images = x_train[0:1000].reshape(1000, 28*28) / 255
+labels = y_train[0:1000]
 
 one_hot_labels = np.zeros((len(labels), 10))
 for i, l in enumerate(labels):
@@ -24,17 +24,18 @@ for i, l in enumerate(y_test):
     test_labels[i][l] = 1
 
 net = Network([784, 150, 10])
-net.activation_func = [ActivationFunc.tanh, ActivationFunc.sigmoid]
-net.derivative_func = [DifferensiateFunc.tanh, DifferensiateFunc.simple]
-net.alpha = 2
+net.build_wieghts()
+net.activation_func = [ActivationFunc.tanh, ActivationFunc.softmax]
+net.derivative_func = [DerivativeFunc.tanh, DerivativeFunc.simple]
+net.alpha = 5
 net.batch_size = 100
 net.need_dropout = True
 
-net.train(images, labels, iterations_num=300)
+net.train(images, labels, iterations_num=100)
 
-# data_input = np.array([imageprepare('test.png')])
-# result = net.forward(data_input)
-# print(result)
+data_input = np.array([imageprepare('test.png')])
+result = net.forward(data_input)
+print(result)
 
 result = net.forward(test_images)
 error = np.sum(np.round((result - test_labels.T)**2, 3))
