@@ -4,9 +4,9 @@ from neural import ActivationFunc, DerivativeFunc, Network
 
 net = Network([3, 5, 1])
 net.build_wieghts()
-net.activation_func = [ActivationFunc.sigmoid, ActivationFunc.sigmoid]
-net.derivative_func = [DerivativeFunc.sigmoid, DerivativeFunc.sigmoid]
-net.alpha = 5
+net.activation_func = [ActivationFunc.tanh, ActivationFunc.sigmoid]
+net.derivative_func = [DerivativeFunc.tanh, DerivativeFunc.sigmoid]
+net.alpha = 7
 data = np.array([[0, 0, 1],
                  [0, 1, 1],
                  [1, 0, 1],

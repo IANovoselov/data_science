@@ -31,12 +31,13 @@ net.alpha = 5
 net.batch_size = 100
 net.need_dropout = True
 
-net.train(images, labels, iterations_num=100)
+net.train(images, labels, iterations_num=300)
 
 data_input = np.array([imageprepare('test.png')])
 result = net.forward(data_input)
-print(result)
+print('Ответ:', np.argmax(result))
 
+# Прогон на тестовых данных
 result = net.forward(test_images)
 error = np.sum(np.round((result - test_labels.T)**2, 3))
 correct_answers = sum([np.argmax(result[:, k]) == np.argmax(test_labels.T[:, k]) for k in range(len(test_labels))])

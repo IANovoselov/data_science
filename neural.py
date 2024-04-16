@@ -42,9 +42,16 @@ class ActivationFunc:
 
         """
         temp = np.exp(value)
-        for i in range(value.shape[1]):
-            temp[:, i] /= np.sum(temp[:, i])
-        return temp
+        return temp / np.sum(temp, axis=0, keepdims=True)
+
+
+    @classmethod
+    def softmax_ud(cls, value, *args, **kwargs):
+        """
+
+        """
+        temp = np.exp(value)
+        return temp / np.sum(temp, axis=1, keepdims=True)
 
     @classmethod
     def tanh(cls, value, *args, **kwargs):
@@ -171,6 +178,43 @@ class Network:
 
         return result
 
+    def forward_du(self, inputs: np.ndarray[Any]) -> np.ndarray:
+        """
+        Прямое распространение (визуально снизу вверх)
+        :param inputs:
+        :return:
+        """
+        self.activations = []
+        self.layer_inputs = []
+        self.dropout_masks = []
+
+        result = np.array(inputs)
+
+        self.layer_inputs.append(result.copy())
+        self.activations.append(result.copy())
+
+        for layer_num in range(self.layers-1):
+
+            # Запомнить результат выисления на каждом слое
+            layer_result = result.dot(self.weights[layer_num])
+
+            if layer_num == 0:
+                layer_result = layer_result.reshape(self.batch_size, -1)
+
+            self.layer_inputs.append(layer_result.copy())
+
+            result = self.activate(layer_result, layer_num)
+
+            if self.need_dropout:
+                if layer_num != self.layers-2:
+                    dropout_mask = np.random.randint(2, size=result.shape)
+                    result *= dropout_mask * 2
+                    self.dropout_masks.append(dropout_mask)
+
+            self.activations.append(result.copy())
+
+        return result
+
     def back_propagation(self, calc_result: np.ndarray, goal: np.ndarray) -> None:
         """
         Обратное распространение ошибки
@@ -200,6 +244,44 @@ class Network:
             weights_old = self.weights[i].copy()
 
             self.weights[i] -= self.alpha * delta_hidden.dot(self.activations[i-1].T)
+
+            delta_output = delta_hidden
+
+        return error
+
+    def back_propagation_du(self, calc_result: np.ndarray, goal: np.ndarray) -> None:
+        """
+        Обратное распространение ошибки
+        :param calc_result: Расчитанный результат
+        :param goal: Ожидаемый резульат
+        :return:
+        """
+
+        error = np.sum(np.round((calc_result - goal)**2, 3))
+
+        delta_output = (calc_result - goal) * self.derivative(self.layer_inputs[-1], -1, goal)
+        delta_output = delta_output/(self.batch_size * goal.shape[0]) #* delta_output.shape[0])
+
+        weights_old = self.weights[-1].copy()
+
+        self.weights[-1] -= self.alpha * self.activations[-2].T.dot(delta_output)
+
+        for layer_num in range(2, self.layers):
+
+            i = -layer_num
+
+            delta_hidden = delta_output.dot(weights_old.T) * self.derivative(self.layer_inputs[i], i)
+
+            if self.need_dropout:
+                delta_hidden *= self.dropout_masks[i+1]
+
+            weights_old = self.weights[i].copy()
+
+            if layer_num == self.layers - 1:
+
+                delta_hidden = delta_hidden.reshape(self.layer_inputs[i-1].shape[0], self.weights[0].shape[1])
+
+            self.weights[i] -= self.alpha * self.activations[i-1].T.dot(delta_hidden)
 
             delta_output = delta_hidden
 
@@ -252,18 +334,15 @@ class Network:
                                                          col_start+3)
                         sections.append(section)
 
-
                 expanded_input = np.concatenate(sections, axis=1)
                 flatten_input = expanded_input.reshape(expanded_input.shape[0] * expanded_input.shape[1], -1)
-                goal = y_train[batch_start:batch_stop].T
-                result = self.forward(flatten_input, with_kernels=True)
+                result = self.forward_du(flatten_input)
 
-                if len(goal) == 1:
-                    correct_answers += (result[0][0] > (goal[0]* 0.9 or -0.1) and result[0][0] < (goal[0]* 1.1 or 0.1))
-                else:
-                    correct_answers += sum([np.argmax(result[:, k]) == np.argmax(goal[:, k]) for k in range(self.batch_size)])
+                goal = y_train[batch_start:batch_stop]
 
-                error = self.back_propagation(result, goal, with_kernels=True)
+                correct_answers += sum([np.argmax(result[k: k+1]) == np.argmax(goal[k: k+1]) for k in range(self.batch_size)])
+
+                error = self.back_propagation_du(result, goal)
 
                 common_error += error
 

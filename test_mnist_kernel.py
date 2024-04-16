@@ -1,4 +1,6 @@
 import numpy as np
+np.random.seed(1)
+
 import sys
 from keras.datasets import mnist, imdb
 from neural import ActivationFunc, DerivativeFunc, Network
@@ -34,27 +36,42 @@ kernel_cols = 3
 num_kernels = 16
 
 hidden_size = ((input_rows - kernel_rows) * (input_cols - kernel_cols)) * num_kernels
-kernels = np.random.randn(num_kernels, kernel_rows * kernel_cols)
+kernels = 0.02 * np.random.random((kernel_rows*kernel_cols, num_kernels)) - 0.1
 
 net = Network([784, hidden_size, 10])
-net.activation_func = [ActivationFunc.tanh, ActivationFunc.softmax]
+net.activation_func = [ActivationFunc.tanh, ActivationFunc.softmax_ud]
 net.derivative_func = [DerivativeFunc.tanh, DerivativeFunc.simple]
 net.alpha = 2
 net.batch_size = 128
-net.need_dropout = False
+net.need_dropout = True
 
 net.weights = [kernels,
-               np.random.randn(10, hidden_size)]
+               0.02 * np.random.random((hidden_size, 10)) - 0.1]
 
 
-net.train_with_kernels(images, labels, iterations_num=300)
+net.train_with_kernels(images, labels, iterations_num=50)
 
-# data_input = np.array([imageprepare('test.png')])
+data_input = np.array([imageprepare('test.png')])
 # result = net.forward(data_input)
 # print(result)
 
-result = net.forward(test_images)
-error = np.sum(np.round((result - test_labels.T)**2, 3))
-correct_answers = sum([np.argmax(result[:, k]) == np.argmax(test_labels.T[:, k]) for k in range(len(test_labels))])
-print(error/len(test_labels))
-print(correct_answers/len(test_labels))
+net.batch_size = 1
+correct_answers = 0
+
+data_input = data_input.reshape(data_input.shape[0], 28, 28)
+
+sections = []
+for row_start in range(data_input.shape[1] - 3):
+    for col_start in range(data_input.shape[2] - 3):
+        section = net.get_image_section(data_input,
+                                         row_start,
+                                         row_start+3,
+                                         col_start,
+                                         col_start+3)
+        sections.append(section)
+
+expanded_input = np.concatenate(sections, axis=1)
+flatten_input = expanded_input.reshape(expanded_input.shape[0] * expanded_input.shape[1], -1)
+result = net.forward_du(flatten_input)
+
+print('Ответ: ', np.argmax(result))
