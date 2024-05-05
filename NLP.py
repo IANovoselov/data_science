@@ -6,9 +6,12 @@ import sys
 import csv
 import codecs
 import re
+import pandas as pd
 
 import numpy as np
 from neural import ActivationFunc, DerivativeFunc, Network
+from collections import Counter
+import math
 
 vocabulary = set()
 
@@ -34,23 +37,30 @@ class PureText:
         self.text = re.sub("( \?\(!@#$%^&*()_+=-'\:;|/`~.,{})",'', self.text)
         return self
 
-with codecs.open("IMDB Dataset.csv", "r", "utf_8_sig" ) as file:
-    for i, line in enumerate(file):
-        line = line.split('",')
+raw_data = pd.read_csv("IMDB Dataset.csv", header=None)
 
-        if not line or len(line) < 2:
-            continue
+raw_reviews = list(raw_data[0][1:25001])
+ratings = list(raw_data[1][1:25001])
 
-        review = PureText(line[0].strip()).remove_numbers().remove_html_tags().remove_symbols().text.strip()
-        reviews.append(review)
-        ratings.append(line[1].strip())
 
-        words = set(review.split())
-        words = set(word.lower() for word in words)
-        vocabulary.update(words)
+for i in range(25000):
 
-        if i == 24999:
-            break
+    review = raw_reviews[i]
+    review = PureText(review.strip()).remove_numbers().remove_html_tags().remove_symbols().text.strip()
+    reviews.append(review)
+
+    words = set(review.split())
+    words = set(word.lower() for word in words)
+    vocabulary.update(words)
+
+with open('reviews.txt', 'w+') as file:
+    for line in reviews:
+        file.write(f"{line}\n")
+
+with open('labels.txt', 'w+') as file:
+    for line in ratings:
+        file.write(f"{line}\n")
+
 
 indexed_vocabulary = {}
 for i, word in enumerate(vocabulary):
@@ -82,12 +92,12 @@ net.weights = [0.2 * np.random.random((len(vocabulary), 100)) - 0.1,
 
 net.activation_func = [ActivationFunc.sigmoid, ActivationFunc.sigmoid]
 net.derivative_func = [DerivativeFunc.sigmoid, DerivativeFunc.sigmoid]
-net.alpha = 0.01
+net.alpha = 0.03
 net.batch_size = 100
 net.need_dropout = False
 
 correct, total = 0, 0
-for itration in range(2):
+for itration in range(5):
     for i in range(len(input_data_set) - 1000):
 
         x, y = (input_data_set[i], target_data_set[i])
@@ -108,4 +118,21 @@ for itration in range(2):
         if i % 10 == 9:
             print('correct:', correct / total)
 
+def similar(net, indexed_vocabulary, target='beautiful'):
+    target_index = indexed_vocabulary.get(target)
 
+    if not target_index:
+        return None
+
+    scores = Counter()
+
+    for word, index in indexed_vocabulary.items():
+        raw_difference = net.weights[0][index] - net.weights[0][target_index]
+        sq_difference = raw_difference ** 2
+        scores[word] = -math.sqrt(sum(sq_difference))
+
+    return scores.most_common(10)
+
+print(similar(net, indexed_vocabulary))
+
+print(similar(net, indexed_vocabulary))
