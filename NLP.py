@@ -82,9 +82,6 @@ for rating in ratings:
     else:
         target_data_set.append(0)
 
-x = 4
-
-
 net = Network([len(vocabulary), 100, 1])
 
 net.weights = [0.2 * np.random.random((len(vocabulary), 100)) - 0.1,
