@@ -159,13 +159,48 @@ class Tensor:
     def __str__(self):
         return str(self.data.__str__())
 
-a = Tensor(np.array([1, 2, 3, 4, 5]), autograd=True)
-b = Tensor(np.array([2, 2, 2, 2, 2]), autograd=True)
-c = Tensor(np.array([5, 4, 3, 2, 1]), autograd=True)
 
-d = a + b
-e = b + c
-f = d + e
-f.backward(Tensor(np.array([1, 1, 1, 1, 1])))
+class SGD:
+    """
+    Спуск по градиенту
+    """
+    def __init__(self, parameters, alpha = 0.1):
+        self.parameters = parameters
+        self.alpha = alpha
 
-pass
+    def zero(self):
+        for p in self.parameters:
+            p.grad.data *= 0
+
+    def step(self, zero=True):
+        for p in self.parameters:
+            p.data -= p.grad.data * self.alpha
+
+            if zero:
+                p.grad.data *= 0
+
+
+class Layer:
+
+    def __init__(self):
+        self.parameters = []
+
+    def get_parameters(self):
+        return self.parameters
+
+
+class Linear(Layer):
+
+    def __init__(self, n_inputs, n_outputs):
+        super().__init__()
+        W = np.random.randint(n_inputs, n_outputs)*np.sqrt(2.0/n_inputs)
+        self.weights = Tensor(W, autograd=True)
+        self.bias = Tensor(np.zeros(n_outputs), autograd=True)
+
+        self.parameters.append(self.weights)
+        self.parameters.append(self.bias)
+
+    def forward(self, input):
+        return input.mm(self.weights) + self.bias.expand(0, len(input.data))
+
+
