@@ -37,6 +37,9 @@ class Tensor:
         if not self.autograd:
             return None
 
+        if grad is None:
+            grad = Tensor(np.ones_like(self.data))
+
         if grad_origin is not None:
             if self.children[grad_origin.id] == 0:
                 raise Exception('Уже было обраное распространение')
@@ -193,7 +196,7 @@ class Linear(Layer):
 
     def __init__(self, n_inputs, n_outputs):
         super().__init__()
-        W = np.random.randint(n_inputs, n_outputs)*np.sqrt(2.0/n_inputs)
+        W = np.random.randn(n_inputs, n_outputs)*np.sqrt(2.0/n_inputs)
         self.weights = Tensor(W, autograd=True)
         self.bias = Tensor(np.zeros(n_outputs), autograd=True)
 
@@ -204,3 +207,35 @@ class Linear(Layer):
         return input.mm(self.weights) + self.bias.expand(0, len(input.data))
 
 
+class Sequential(Layer):
+
+    def __init__(self, layers=None):
+
+        if layers is None:
+            layers = []
+
+        self.layers = layers
+
+    def add(self, layer):
+        self.layers.append(layer)
+
+    def forward(self, input):
+        for layer in self.layers:
+            input = layer.forward(input)
+
+        return input
+
+    def get_parameters(self):
+        params = []
+        for layer in self.layers:
+            params += layer.get_parameters()
+        return params
+
+class MSELoss(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, pred, target):
+
+        return ((pred-target)*(pred-target)).sum(0)
