@@ -51,25 +51,25 @@ class Tensor:
         else:
             self.grad += grad
 
-        if(self.creators is not None and
+        if (self.creators is not None and
                 (self.all_children_grads_accounted_for() or
                  grad_origin is None)):
 
-            if(self.creation_op == "add"):
+            if (self.creation_op == "add"):
                 self.creators[0].backward(self.grad, self)
                 self.creators[1].backward(self.grad, self)
 
-            if(self.creation_op == "sub"):
+            if (self.creation_op == "sub"):
                 self.creators[0].backward(Tensor(self.grad.data), self)
                 self.creators[1].backward(Tensor(self.grad.__neg__().data), self)
 
-            if(self.creation_op == "mul"):
+            if (self.creation_op == "mul"):
                 new = self.grad * self.creators[1]
-                self.creators[0].backward(new , self)
+                self.creators[0].backward(new, self)
                 new = self.grad * self.creators[0]
                 self.creators[1].backward(new, self)
 
-            if(self.creation_op == "mm"):
+            if (self.creation_op == "mm"):
                 c0 = self.creators[0]
                 c1 = self.creators[1]
                 new = self.grad.mm(c1.transpose())
@@ -77,20 +77,36 @@ class Tensor:
                 new = self.grad.transpose().mm(c0).transpose()
                 c1.backward(new)
 
-            if(self.creation_op == "transpose"):
+            if (self.creation_op == "transpose"):
                 self.creators[0].backward(self.grad.transpose())
 
-            if("sum" in self.creation_op):
+            if ("sum" in self.creation_op):
                 dim = int(self.creation_op.split("_")[1])
                 self.creators[0].backward(self.grad.expand(dim,
                                                            self.creators[0].data.shape[dim]))
 
-            if("expand" in self.creation_op):
+            if ("expand" in self.creation_op):
                 dim = int(self.creation_op.split("_")[1])
                 self.creators[0].backward(self.grad.sum(dim))
 
-            if(self.creation_op == "neg"):
+            if (self.creation_op == "neg"):
                 self.creators[0].backward(self.grad.__neg__())
+
+            if (self.creation_op == "sigmoid"):
+                ones = Tensor(np.ones_like(self.grad.data))
+                self.creators[0].backward(self.grad * (self * (ones - self)))
+
+            if (self.creation_op == "tanh"):
+                ones = Tensor(np.ones_like(self.grad.data))
+                self.creators[0].backward(self.grad * (ones * (self * self)))
+
+            if self.creation_op == 'index_select':
+                new_grad = np.zeros_like(self.creators[0].data)
+                _indices = self.index_select_indices.data.flatten()
+                _grad = grad.data.reshape(len(_indices), -1)
+                for i in range(len(_indices)):
+                    new_grad[_indices[i]] += _grad[i]
+                self.creators[0].backward(Tensor(new_grad))
 
     def __add__(self, other):
         if self.autograd and other.autograd:
@@ -114,7 +130,7 @@ class Tensor:
         if(self.autograd and other.autograd):
             return Tensor(self.data * other.data,
                           autograd=True,
-                          creators=[self,other],
+                          creators=[self, other],
                           creation_op="mul")
         return Tensor(self.data * other.data)
 
@@ -155,6 +171,36 @@ class Tensor:
                           creators=[self, x],
                           creation_op="mm")
         return Tensor(self.data.dot(x.data))
+
+    def sigmoid(self):
+        if self.autograd:
+            return Tensor(1 / (1 + np.exp(-self.data)),
+                          autograd=True,
+                          creators=[self],
+                          creation_op='sigmoid')
+        return Tensor(1 / (1 + np.exp(-self.data)))
+
+    def tanh(self):
+        if self.autograd:
+            return Tensor(np.tanh(self.data),
+                          autograd=True,
+                          creators=[self],
+                          creation_op='tanh')
+        return Tensor(np.tanh(self.data))
+
+    def index_select(self, indices):
+
+        if self.autograd:
+
+            new = Tensor(self.data[indices.data],
+                         autograd=True,
+                         creators=[self],
+                         creation_op='index_select')
+
+            new.index_select_indices = indices
+            return new
+
+        return Tensor(self.data[indices.data])
 
     def __repr__(self):
         return str(self.data.__repr__())
@@ -207,6 +253,24 @@ class Linear(Layer):
         return input.mm(self.weights) + self.bias.expand(0, len(input.data))
 
 
+class Tanh(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, input):
+        return input.tanh()
+
+
+class Sigmoid(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, input):
+        return input.sigmoid()
+
+
 class Sequential(Layer):
 
     def __init__(self, layers=None):
@@ -239,3 +303,19 @@ class MSELoss(Layer):
     def forward(self, pred, target):
 
         return ((pred-target)*(pred-target)).sum(0)
+
+class Embedding(Layer):
+
+    def __init__(self, vocab_size, dim):
+
+        super().__init__()
+
+        self.vocab_size = vocab_size
+        self.dim = dim
+
+        weight = (np.random.rand(vocab_size, dim) - 0.5) / dim
+        self.weight = Tensor(weight, autograd=True)
+        self.parameters.append(self.weight)
+
+    def forward(self, input):
+        return self.weight.index_select(input)
