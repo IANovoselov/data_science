@@ -108,6 +108,10 @@ class Tensor:
                     new_grad[_indices[i]] += _grad[i]
                 self.creators[0].backward(Tensor(new_grad))
 
+            if self.creation_op == 'cross_entropy':
+                dx = self.softmax_output-self.target_dist
+                self.creators[0].backward(Tensor(dx))
+
     def __add__(self, other):
         if self.autograd and other.autograd:
             return Tensor(self.data + other.data, autograd=True, creators=[self, other], creation_op='add')
@@ -201,6 +205,29 @@ class Tensor:
             return new
 
         return Tensor(self.data[indices.data])
+
+    def cross_entropy(self, target_indices):
+
+        temp = np.exp(self.data)
+        softmax_output = temp / np.sum(temp,
+                                       axis=len(self.data.shape)-1,
+                                       keepdims=True)
+
+        t = target_indices.data.flatten()
+        p = softmax_output.reshape(len(t),-1)
+        target_dist = np.eye(p.shape[1])[t]
+        loss = -(np.log(p) * (target_dist)).sum(1).mean()
+
+        if(self.autograd):
+            out = Tensor(loss,
+                         autograd=True,
+                         creators=[self],
+                         creation_op="cross_entropy")
+            out.softmax_output = softmax_output
+            out.target_dist = target_dist
+            return out
+
+        return Tensor(loss)
 
     def __repr__(self):
         return str(self.data.__repr__())
@@ -319,3 +346,11 @@ class Embedding(Layer):
 
     def forward(self, input):
         return self.weight.index_select(input)
+
+class CrossEntropyLoss:
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, input, target):
+        return input.cross_entropy(target)
