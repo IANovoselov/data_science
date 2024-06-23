@@ -19,4 +19,4 @@ for i in range(10):
     optim.step()
     print(loss)
 
-print(pred)
+print(model.forward(data))
